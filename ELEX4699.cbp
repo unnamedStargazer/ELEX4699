@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="ELEX4699" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/ELEX4699" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="`pkg-config --cflags opencv4` -std=c++11" />
+				</Compiler>
+				<Linker>
+					<Add option="`pkg-config --libs opencv4` -std=c++11 -lpigpio -lrt -lpthread" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/ELEX4699" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="`pkg-config --cflags opencv4` -std=c++11" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="`pkg-config --libs opencv4` -std=c++11 -lpigpio -lrt -lpthread" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="4618_Template.cpp" />
+		<Unit filename="CBase4618.cpp" />
+		<Unit filename="CBase4618.h" />
+		<Unit filename="CRobot.cpp" />
+		<Unit filename="CRobot.h" />
+		<Unit filename="server.cpp" />
+		<Unit filename="server.h" />
+		<Unit filename="sysSelect.cpp" />
+		<Unit filename="sysSelect.h" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>
