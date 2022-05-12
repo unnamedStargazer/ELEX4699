@@ -3,6 +3,7 @@
 
 #include "sysSelect.h"
 #include "CBase4618.h"
+#include "server.h"
 #include <map>
 #include <vector>
 #include <mutex>
@@ -43,10 +44,20 @@ class CRobot : public CBase4618
 
             void ultrasonicUpdate();
 
+        // Server. To communicate with a client computer for remote control.
+        Server _server;
+        void commServerMain();
+        bool _flagServerStarted;
+
+        // Client. To communicate with the arena computer to obtain arena information.
+        void commClient();
+
         // Threads
         std::vector<std::thread> _threadVector;
         void thread_sevSegUpdate();
         void thread_ultrasonicUpdate();
+        void thread_commServerStart();
+        void thread_commServerMain();
 
         // Init
         void init_sevSeg();

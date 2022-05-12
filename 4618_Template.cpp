@@ -287,7 +287,7 @@ void robotCar()
     robot.run();
 }
 
-void testgpio()
+/*void testgpio()
 {
     gpioTerminate();
 
@@ -298,8 +298,8 @@ void testgpio()
 
     else
     {
-        gpioSetMode(ECHO, PI_INPUT);
-        gpioSetMode(TRIG, PI_OUTPUT);
+//        gpioSetMode(ECHO, PI_INPUT);
+//        gpioSetMode(TRIG, PI_OUTPUT);
 
         static double previousTime = 0;
         double currentTime = 0;
@@ -354,7 +354,7 @@ void testgpio()
             }
         }
     }
-}
+}*/
 
 
 int main(int argc, char* argv[])

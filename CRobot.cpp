@@ -1,13 +1,26 @@
 #include "CRobot.h"
+#include <thread>
 //#include <bitset>
 
 CRobot::CRobot()
 {
+    // Reset flags
+    _stop = false;
+    _flagServerStarted = false;
+
+    // Generate cv window
+    cv::imshow("Program exit", cv::Mat::zeros(cv::Size(100, 100), CV_8UC3));
+
+    // Initialise GPIO
+    gpioTerminate();
+
+
     if (gpioInitialise() < 0)
     {
         _stop = true;
     }
 
+    // Initialise others
     init_sevSeg();
     init_ultrasonic();
     init_threads();
@@ -15,7 +28,10 @@ CRobot::CRobot()
 
 CRobot::~CRobot()
 {
-    sevSegMessage("");
+    gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+    gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+    gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+    gpioWrite(robotOps::seg_dig4, robotOps::OFF);
     gpioTerminate();
 }
 
@@ -78,6 +94,8 @@ void CRobot::init_sevSeg()
     _sevSegMap.insert(std::pair<char,int>('f', 0b0000010));
     _sevSegMap.insert(std::pair<char,int>('g', 0b0000001));
     _sevSegMap.insert(std::pair<char,int>('p', 0b10000000));
+
+    sevSegMessage("RDY");
 }
 
 void CRobot::init_threads()
@@ -85,6 +103,10 @@ void CRobot::init_threads()
     _threadVector.push_back((std::thread(&CRobot::thread_sevSegUpdate, this)));
     _threadVector.back().detach();
     _threadVector.push_back((std::thread(&CRobot::thread_ultrasonicUpdate, this)));
+    _threadVector.back().detach();
+    _threadVector.push_back((std::thread(&CRobot::thread_commServerStart, this)));
+    _threadVector.back().detach();
+    _threadVector.push_back((std::thread(&CRobot::thread_commServerMain, this)));
     _threadVector.back().detach();
 }
 
@@ -105,18 +127,49 @@ void CRobot::init_ultrasonic()
 
 void CRobot::thread_sevSegUpdate()
 {
+    std::cout << "Thread sevSegUpdate started." << std::endl;
+
     while (!_stop)
 	{
 		sevSegUpdate();
 	}
+
+
 }
 
 void CRobot::thread_ultrasonicUpdate()
 {
+    std::cout << "Thread ultrasonicUpdate started." << std::endl;
+
     while (!_stop)
 	{
 		ultrasonicUpdate();
 	}
+}
+
+void CRobot::thread_commServerMain()
+{
+    std::cout << "Thread commServerMain started." << std::endl;
+
+    while(!_stop)
+    {
+        //std::this_thread::sleep_for(std::chrono::microseconds(1));
+        commServerMain();
+    }
+
+    _server.stop();
+
+    std::cout << "Server stopped." << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+}
+
+void CRobot::thread_commServerStart()
+{
+    std::cout << "Thread commServerStart started." << std::endl;
+    int port = 4699;
+    std::cout << "Starting server on port " << port << "." << std::endl;
+    _server.start(port);
 }
 
 void CRobot::sevSegMessage(std::string initial)
@@ -127,7 +180,7 @@ void CRobot::sevSegMessage(std::string initial)
     _sevSegMessage.resize(8, '_');
     _sevSegMutex.unlock();
 
-    for (int index = 0, alnumCount = 0, punctCount = 0; index < initial.size() && alnumCount <= 4 && punctCount <= 4; index++)
+    for (unsigned int index = 0, alnumCount = 0, punctCount = 0; index < initial.size() && alnumCount <= 4 && punctCount <= 4; index++)
     {
         if (isalnum(initial.at(index)) && alnumCount < 4)
         {
@@ -174,52 +227,61 @@ char CRobot::sevSegChar(int digit)
 
 void CRobot::sevSegUpdate()
 {
-    auto end_time = std::chrono::system_clock::now() + std::chrono::microseconds(2500);
+    auto end_time = std::chrono::system_clock::now() + std::chrono::microseconds(1000);
+//std::cout << (double) cv::getTickCount() / cv::getTickFrequency() << std::endl;
+    //double _CurrentTime = cv::getTickCount();
+    //static double _PreviousTime = 0;
+    //double difference = (_CurrentTime - _PreviousTime) / cv::getTickFrequency();
 
-    _sevSegDigitSelector < 4 ? _sevSegDigitSelector++ : _sevSegDigitSelector = 1; // Iterate between digits 1 - 4; return to 1 if greater than 4
+//    if (difference >= 0.001)
+  //  {
+        _sevSegDigitSelector < 4 ? _sevSegDigitSelector++ : _sevSegDigitSelector = 1; // Iterate between digits 1 - 4; return to 1 if greater than 4
 
-    char character = sevSegChar(_sevSegDigitSelector);
+        char character = sevSegChar(_sevSegDigitSelector);
 
-    switch (_sevSegDigitSelector)
-    {
-        case 1:
-            gpioWrite(robotOps::seg_dig1, robotOps::ON);
-            gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-            break;
+        switch (_sevSegDigitSelector)
+        {
+            case 1:
+                gpioWrite(robotOps::seg_dig1, robotOps::ON);
+                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+                break;
 
-        case 2:
-            gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig2, robotOps::ON);
-            gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-            break;
+            case 2:
+                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig2, robotOps::ON);
+                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+                break;
 
-        case 3:
-            gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig3, robotOps::ON);
-            gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-            break;
+            case 3:
+                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig3, robotOps::ON);
+                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+                break;
 
-        case 4:
-            gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-            gpioWrite(robotOps::seg_dig4, robotOps::ON);
-            break;
-    }
+            case 4:
+                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig4, robotOps::ON);
+                break;
+        }
 
-    // Apply character mask to the current digit and write to display
-    gpioWrite(robotOps::seg_a, (character & _sevSegMap['a']) > 0);
-    gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
-    gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
-    gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
-    gpioWrite(robotOps::seg_e, (character & _sevSegMap['e']) > 0);
-    gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
-    gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
-    gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
+        // Apply character mask to the current digit and write to display
+        gpioWrite(robotOps::seg_a, (character & _sevSegMap['a']) > 0);
+        gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
+        gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
+        gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
+        gpioWrite(robotOps::seg_e, (character & _sevSegMap['e']) > 0);
+        gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
+        gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
+        gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
+
+        //_PreviousTime = _CurrentTime;
+    //}
 
     std::this_thread::sleep_until(end_time);
 }
@@ -264,13 +326,73 @@ void CRobot::ultrasonicUpdate()
         _usTrigState = 1; // Reset TRIG state after the 60 ms period
         _usEchoState = 1; // Reset ECHO state after the 60 ms period
         _usDistance = ((_usEchoFallingEdge - _usEchoRisingEdge) / cv::getTickFrequency()) * 340 / 2; // Distance in metres
-        std::cout << _usDistance << std::endl;
+    }
+}
+
+void CRobot::commServerMain()
+{
+    std::vector<std::string> serverCommand;
+
+    _server.get_cmd(serverCommand);
+
+    if (serverCommand.size() > 0)
+    {
+        for (unsigned int index = 0; index < serverCommand.size(); index++)
+        {
+            if (serverCommand.at(index) == "a")
+            {
+                _server.send_string("Test command received.");
+                sevSegMessage("Test");
+            }
+
+            else if (serverCommand.at(index) == "Good")
+            {
+                sevSegMessage("Good");
+                _server.send_string("Command acknowledged");
+            }
+
+            else if (serverCommand.at(index) == "i")
+            {
+                sevSegMessage("drv.f");
+                _server.send_string("Drive forward");
+            }
+
+            else if (serverCommand.at(index) == "k")
+            {
+                sevSegMessage("drv.r");
+                _server.send_string("Reverse");
+            }
+
+            else if (serverCommand.at(index) == "j")
+            {
+                sevSegMessage("trn.l");
+                _server.send_string("Turn left");
+            }
+
+            else if (serverCommand.at(index) == "l")
+            {
+                sevSegMessage("trn.r");
+                _server.send_string("Turn right");
+            }
+
+            else if (serverCommand.at(index) == ",")
+            {
+                sevSegMessage("Brak");
+                _server.send_string("Brake");
+            }
+
+            else
+            {
+                sevSegMessage("UNKN");
+                _server.send_string("Unknown command");
+            }
+        }
     }
 }
 
 void CRobot::draw()
 {
-    //_sevSegMessage = "A___";
+    /*//_sevSegMessage = "A___";
     sevSegMessage("A");
     std::this_thread::sleep_for(std::chrono::seconds(2));
     //_sevSegMessage = "AB__";
@@ -297,7 +419,7 @@ void CRobot::draw()
     sevSegMessage("192.1");
     std::this_thread::sleep_for(std::chrono::seconds(2));
     sevSegMessage("9576.");
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(2));*/
 }
 
 void CRobot::update()

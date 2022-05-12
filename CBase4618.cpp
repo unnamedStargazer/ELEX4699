@@ -86,6 +86,7 @@ void CBase4618::run()
 			if (_waitKeyReceived == 'q' || _waitKeyReceived == 'Q' || _stop == true)
 			{
 				_waitKeyFlag = true;
+				_stop = true;
 			}
 		}
 
