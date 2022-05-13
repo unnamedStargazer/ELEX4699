@@ -42,6 +42,8 @@
 		<Unit filename="CBase4618.h" />
 		<Unit filename="CRobot.cpp" />
 		<Unit filename="CRobot.h" />
+		<Unit filename="Client.cpp" />
+		<Unit filename="Client.h" />
 		<Unit filename="server.cpp" />
 		<Unit filename="server.h" />
 		<Unit filename="sysSelect.cpp" />

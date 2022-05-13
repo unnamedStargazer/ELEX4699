@@ -363,8 +363,22 @@ int main(int argc, char* argv[])
 
 	do
 	{
+        //std::cin.clear();
+		//std::cout.flush();
 		print_menu();
+		//std::cin.clear();
+		//std::cin.clear();
+		//cmd.clear();
 		std::cin >> cmd;
+		//std::getline(std::cin, cmd);
+		//std::cin.sync();
+
+		/*if (std::cin.fail())
+		{
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }*/
+
 		switch (cmd.front())
 		{
 		case '1': robotCar(); break;

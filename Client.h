@@ -6,8 +6,8 @@
 #include <string>
 #include <opencv2/opencv.hpp>
 
-#define WIN4618
-//#define PI4618
+//#define WIN4618
+#define PI4618
 
 #ifdef WIN4618
 #include "Winsock2.h"
@@ -39,7 +39,7 @@ private:
   int _port;
   std::string _addr;
   SOCKET _socket;
-  
+
   bool setblocking(SOCKET fd, bool blocking);
 
 public:

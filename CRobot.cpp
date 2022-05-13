@@ -8,6 +8,10 @@ CRobot::CRobot()
     _stop = false;
     _flagServerStarted = false;
 
+    // Arena computer
+    _arenaIP = "192.168.1.100";
+    _arenaPort = 47001;
+
     // Generate cv window
     cv::imshow("Program exit", cv::Mat::zeros(cv::Size(100, 100), CV_8UC3));
 
@@ -23,11 +27,14 @@ CRobot::CRobot()
     // Initialise others
     init_sevSeg();
     init_ultrasonic();
-    init_threads();
+    init_threads(); // Seven-segment, ultrasonic, server start, server main, client
 }
 
 CRobot::~CRobot()
 {
+    _threadVector.clear();
+    _client.close_socket();
+
     gpioWrite(robotOps::seg_dig1, robotOps::OFF);
     gpioWrite(robotOps::seg_dig2, robotOps::OFF);
     gpioWrite(robotOps::seg_dig3, robotOps::OFF);
@@ -108,6 +115,10 @@ void CRobot::init_threads()
     _threadVector.back().detach();
     _threadVector.push_back((std::thread(&CRobot::thread_commServerMain, this)));
     _threadVector.back().detach();
+    _threadVector.push_back((std::thread(&CRobot::thread_commClientStart, this)));
+    _threadVector.back().detach();
+    _threadVector.push_back((std::thread(&CRobot::thread_commClientMain, this)));
+    _threadVector.back().detach();
 }
 
 void CRobot::init_ultrasonic()
@@ -172,6 +183,21 @@ void CRobot::thread_commServerStart()
     _server.start(port);
 }
 
+void CRobot::thread_commClientStart()
+{
+    std::cout << "Thread commClient started." << std::endl;
+
+    _client.connect_socket(_arenaIP, _arenaPort);
+}
+
+void CRobot::thread_commClientMain()
+{
+    while (!_stop)
+    {
+        commClientMain();
+    }
+}
+
 void CRobot::sevSegMessage(std::string initial)
 {
     initial.resize(8);
@@ -228,60 +254,51 @@ char CRobot::sevSegChar(int digit)
 void CRobot::sevSegUpdate()
 {
     auto end_time = std::chrono::system_clock::now() + std::chrono::microseconds(1000);
-//std::cout << (double) cv::getTickCount() / cv::getTickFrequency() << std::endl;
-    //double _CurrentTime = cv::getTickCount();
-    //static double _PreviousTime = 0;
-    //double difference = (_CurrentTime - _PreviousTime) / cv::getTickFrequency();
 
-//    if (difference >= 0.001)
-  //  {
-        _sevSegDigitSelector < 4 ? _sevSegDigitSelector++ : _sevSegDigitSelector = 1; // Iterate between digits 1 - 4; return to 1 if greater than 4
+    _sevSegDigitSelector < 4 ? _sevSegDigitSelector++ : _sevSegDigitSelector = 1; // Iterate between digits 1 - 4; return to 1 if greater than 4
 
-        char character = sevSegChar(_sevSegDigitSelector);
+    char character = sevSegChar(_sevSegDigitSelector);
 
-        switch (_sevSegDigitSelector)
-        {
-            case 1:
-                gpioWrite(robotOps::seg_dig1, robotOps::ON);
-                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-                break;
+    switch (_sevSegDigitSelector)
+    {
+        case 1:
+            gpioWrite(robotOps::seg_dig1, robotOps::ON);
+            gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+            break;
 
-            case 2:
-                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig2, robotOps::ON);
-                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-                break;
+        case 2:
+            gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig2, robotOps::ON);
+            gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+            break;
 
-            case 3:
-                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig3, robotOps::ON);
-                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-                break;
+        case 3:
+            gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig3, robotOps::ON);
+            gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+            break;
 
-            case 4:
-                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-                gpioWrite(robotOps::seg_dig4, robotOps::ON);
-                break;
-        }
+        case 4:
+            gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+            gpioWrite(robotOps::seg_dig4, robotOps::ON);
+            break;
+    }
 
-        // Apply character mask to the current digit and write to display
-        gpioWrite(robotOps::seg_a, (character & _sevSegMap['a']) > 0);
-        gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
-        gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
-        gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
-        gpioWrite(robotOps::seg_e, (character & _sevSegMap['e']) > 0);
-        gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
-        gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
-        gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
-
-        //_PreviousTime = _CurrentTime;
-    //}
+    // Apply character mask to the current digit and write to display
+    gpioWrite(robotOps::seg_a, (character & _sevSegMap['a']) > 0);
+    gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
+    gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
+    gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
+    gpioWrite(robotOps::seg_e, (character & _sevSegMap['e']) > 0);
+    gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
+    gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
+    gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
 
     std::this_thread::sleep_until(end_time);
 }
@@ -388,6 +405,38 @@ void CRobot::commServerMain()
             }
         }
     }
+}
+
+void CRobot::commClientMain()
+{
+    std::string response;
+    std::string command = "G 0";
+
+    _client.tx_str(command);
+
+    if (_client.rx_str(response) == true)
+    {
+        std::cout << "Transmitted: " << command << "\t Received: " << response << std::endl;
+    }
+
+    /*else
+    {
+        // No response, disconnect and reconnect
+		_client.close_socket();
+        _client.connect_socket(_arenaIP, _arenaPort);
+    }*/
+
+    /*do
+    {
+    std::cout << "Test command from commClient" << std::endl;
+        _client.rx_str(response);
+
+        if (response.length() > 0)
+        {
+            std::cout << "Transmitted: " << command << "\t Received: " << response << std::endl;
+        }
+
+    } while (response.length() == 0 && !_stop);*/
 }
 
 void CRobot::draw()

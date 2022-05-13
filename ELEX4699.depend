@@ -634,7 +634,7 @@
 1648852075 source:/home/felix/Documents/elex4699/ELEX4699/sysSelect.cpp
 	"sysSelect.h"
 
-1652308811 source:/home/felix/Documents/elex4699/ELEX4699/4618_Template.cpp
+1652408541 source:/home/felix/Documents/elex4699/ELEX4699/4618_Template.cpp
 	"sysSelect.h"
 	<string>
 	<iostream>
@@ -651,20 +651,40 @@
 	<thread>
 	<vector>
 
-1652336116 /home/felix/Documents/elex4699/ELEX4699/CRobot.h
+1652411315 /home/felix/Documents/elex4699/ELEX4699/CRobot.h
 	"sysSelect.h"
 	"CBase4618.h"
 	"server.h"
+	"Client.h"
 	<map>
 	<vector>
 	<mutex>
 
-1652308811 source:/home/felix/Documents/elex4699/ELEX4699/CBase4618.cpp
+1652407841 source:/home/felix/Documents/elex4699/ELEX4699/CBase4618.cpp
 	"sysSelect.h"
 	"CBase4618.h"
 	<thread>
 
-1652340113 source:/home/felix/Documents/elex4699/ELEX4699/CRobot.cpp
+1652409366 source:/home/felix/Documents/elex4699/ELEX4699/CRobot.cpp
 	"CRobot.h"
 	<thread>
+
+1652401297 /home/felix/Documents/elex4699/ELEX4699/Client.h
+	<string>
+	<opencv2/opencv.hpp>
+	"Winsock2.h"
+	<sys/types.h>
+	<stdlib.h>
+	<unistd.h>
+	<sys/socket.h>
+	<sys/ioctl.h>
+	<fcntl.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<netdb.h>
+	<thread>
+
+1652401219 source:/home/felix/Documents/elex4699/ELEX4699/Client.cpp
+	<iostream>
+	"Client.h"
 

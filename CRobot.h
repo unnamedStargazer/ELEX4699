@@ -4,6 +4,7 @@
 #include "sysSelect.h"
 #include "CBase4618.h"
 #include "server.h"
+#include "Client.h"
 #include <map>
 #include <vector>
 #include <mutex>
@@ -41,8 +42,7 @@ class CRobot : public CBase4618
         float _usDistance; // In metres
         int _usTrigState; // Used to create a 60 ms period
         int _usEchoState;
-
-            void ultrasonicUpdate();
+        void ultrasonicUpdate();
 
         // Server. To communicate with a client computer for remote control.
         Server _server;
@@ -50,7 +50,11 @@ class CRobot : public CBase4618
         bool _flagServerStarted;
 
         // Client. To communicate with the arena computer to obtain arena information.
-        void commClient();
+        CClient _client;
+        std::string _arenaIP;
+        int _arenaPort;
+        void commClientStart();
+        void commClientMain();
 
         // Threads
         std::vector<std::thread> _threadVector;
@@ -58,6 +62,8 @@ class CRobot : public CBase4618
         void thread_ultrasonicUpdate();
         void thread_commServerStart();
         void thread_commServerMain();
+        void thread_commClientStart();
+        void thread_commClientMain();
 
         // Init
         void init_sevSeg();

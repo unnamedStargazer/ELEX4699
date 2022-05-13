@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////
 // Prepared for BCIT ELEX4618, April 2022, by Craig Hennessey
 ///////////////////////////////////////////////////////////////////
-#include "stdafx.h"
+//#include "stdafx.h"
 #include <iostream>
 
 #include "Client.h"
@@ -126,7 +126,7 @@ bool CClient::rx_im(cv::Mat &im)
 	{
 		// Store incoming data into byte array
 		rxbytes = recv(_socket, rxbuff, BUFF_SIZE, 0);
-	} 
+	}
   while (rxbytes == -1 && (cv::getTickCount() - start_time) / cv::getTickFrequency() < 1.0);  // Timeout after 1 second
 
 	// If all the bytes were recieved, decode JPEG data to image
