@@ -1,5 +1,6 @@
 #include "CRobot.h"
 #include <thread>
+#include <string>
 //#include <bitset>
 
 CRobot::CRobot()
@@ -8,9 +9,13 @@ CRobot::CRobot()
     _stop = false;
     _flagServerStarted = false;
 
-    // Arena computer
+    // Arena
     _arenaIP = "192.168.1.100";
     _arenaPort = 47001;
+    _target1 = 0;
+    _target2 = 0;
+    _target3 = 0;
+    _target4 = 0;
 
     // Generate cv window
     cv::imshow("Program exit", cv::Mat::zeros(cv::Size(100, 100), CV_8UC3));
@@ -419,24 +424,38 @@ void CRobot::commClientMain()
         std::cout << "Transmitted: " << command << "\t Received: " << response << std::endl;
     }
 
+    extractArenaInfo(response);
+
     /*else
     {
         // No response, disconnect and reconnect
 		_client.close_socket();
         _client.connect_socket(_arenaIP, _arenaPort);
     }*/
+}
 
-    /*do
+void CRobot::extractArenaInfo(std::string response)
+{
+    if (response.length() > 0)
     {
-    std::cout << "Test command from commClient" << std::endl;
-        _client.rx_str(response);
+        int start1, start2, start3, start4;
 
-        if (response.length() > 0)
-        {
-            std::cout << "Transmitted: " << command << "\t Received: " << response << std::endl;
-        }
+        start1 = response.find(',') + 1;
+        start2 = response.find(',', start1) + 1;
+        start3 = response.find(',', start2) + 1;
+        start4 = response.find(',', start3) + 1;
 
-    } while (response.length() == 0 && !_stop);*/
+        //std::string test = response.substr(start1, start2 - start1 - 1);
+        //int test2 = std::stoi(test);
+
+        _target1 = std::stoi(response.substr(start1, start2 - start1 - 1));
+        _target2 = std::stoi(response.substr(start2, start3 - start2 - 1));
+        _target3 = std::stoi(response.substr(start3, start4 - start3 - 1));
+        _target4 = std::stoi(response.substr(start4, response.find_last_of(',') - start4));
+
+        std::string _sevSegScoreMessage = std::to_string(_target1) + "." + std::to_string(_target2) + "." + std::to_string(_target3) + "." + std::to_string(_target4);
+        sevSegMessage(_sevSegScoreMessage);
+    }
 }
 
 void CRobot::draw()

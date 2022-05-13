@@ -25,13 +25,14 @@ class CRobot : public CBase4618
         // Seven segment
         std::map<char, int> _sevSegMap;
         std::string _sevSegMessage;
+        std::string _sevSegScoreMessage;
         char _sevSegChar;
         int _sevSegDigitSelector;
         std::mutex _sevSegMutex;
 
-            void sevSegUpdate();
-            void sevSegMessage(std::string message);
-            char sevSegChar(int digit);
+        void sevSegUpdate();
+        void sevSegMessage(std::string message);
+        char sevSegChar(int digit);
 
         // Ultrasonic sensor
         double _usPreviousTime;
@@ -55,6 +56,13 @@ class CRobot : public CBase4618
         int _arenaPort;
         void commClientStart();
         void commClientMain();
+
+        // Arena
+        int _target1;
+        int _target2;
+        int _target3;
+        int _target4;
+        void extractArenaInfo(std::string response);
 
         // Threads
         std::vector<std::thread> _threadVector;
