@@ -426,7 +426,7 @@ void CRobot::commClientMain()
 
     extractArenaInfo(response);
 
-    /*else
+    /*else // Uncommenting this portion breaks the communication for some reason
     {
         // No response, disconnect and reconnect
 		_client.close_socket();
@@ -445,15 +445,12 @@ void CRobot::extractArenaInfo(std::string response)
         start3 = response.find(',', start2) + 1;
         start4 = response.find(',', start3) + 1;
 
-        //std::string test = response.substr(start1, start2 - start1 - 1);
-        //int test2 = std::stoi(test);
-
         _target1 = std::stoi(response.substr(start1, start2 - start1 - 1));
         _target2 = std::stoi(response.substr(start2, start3 - start2 - 1));
         _target3 = std::stoi(response.substr(start3, start4 - start3 - 1));
         _target4 = std::stoi(response.substr(start4, response.find_last_of(',') - start4));
 
-        std::string _sevSegScoreMessage = std::to_string(_target1) + "." + std::to_string(_target2) + "." + std::to_string(_target3) + "." + std::to_string(_target4);
+        std::string _sevSegScoreMessage = std::to_string(_target1).at(0) + "." + std::to_string(_target2).at(0) + "." + std::to_string(_target3).at(0) + "." + std::to_string(_target4).at(0);
         sevSegMessage(_sevSegScoreMessage);
     }
 }
