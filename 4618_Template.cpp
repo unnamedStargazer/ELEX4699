@@ -278,6 +278,7 @@ void print_menu()
 	std::cout << "\n***********************************";
 	std::cout << "\n(1) Robot Car";
 	std::cout << "\n(0) Exit";
+	std::cout << "\n(2) piCam";
 	std::cout << "\nCMD> ";
 }
 
@@ -381,8 +382,10 @@ int main(int argc, char* argv[])
 
 		switch (cmd.front())
 		{
-		case '1': robotCar(); break;
-        case '0': break;
+		case '1': robotCar();
+		break;
+        case '0':
+        break;
         default:
             std::cout << "Invalid entry, try again." << std::endl;
             cmd = "error";

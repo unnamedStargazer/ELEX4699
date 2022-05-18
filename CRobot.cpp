@@ -17,8 +17,15 @@ CRobot::CRobot()
     _target3 = 0;
     _target4 = 0;
 
+    // Settings
+    _qrForwardAreaHigh = 20000;
+    _qrForwardAreaLow = 0;
+    _qrStopAreaHigh = 50000;
+    _qrStopAreaLow = 15500;
+
     // Generate cv window
     cv::imshow("Program exit", cv::Mat::zeros(cv::Size(100, 100), CV_8UC3));
+    cv::imshow("Settings", cv::Mat::zeros(cv::Size(400, 400), CV_8UC3));
 
     // Initialise GPIO
     gpioTerminate();
@@ -29,7 +36,9 @@ CRobot::CRobot()
         _stop = true;
     }
 
+
     // Initialise others
+    init_gpio();
     init_sevSeg();
     init_ultrasonic();
     init_threads(); // Seven-segment, ultrasonic, server start, server main, client
@@ -47,6 +56,27 @@ CRobot::~CRobot()
     gpioTerminate();
 }
 
+void CRobot::init_gpio()
+{
+    gpioSetMode(AI1, PI_OUTPUT);
+    gpioSetMode(AI2, PI_OUTPUT);
+    gpioSetMode(BI1, PI_OUTPUT);
+    gpioSetMode(BI1, PI_OUTPUT);
+    gpioSetMode(STBY, PI_OUTPUT);
+    gpioSetMode(PWMA, PI_OUTPUT);
+    gpioSetMode(PWMB, PI_OUTPUT);
+    gpioSetMode(SERVO1, PI_OUTPUT);
+
+
+    // Enable Standby
+    gpioWrite(STBY, 1);
+
+    gpioWrite(AI1, robotOps::LOW);
+    gpioWrite(AI2, robotOps::LOW);
+    gpioWrite(BI1, robotOps::LOW);
+    gpioWrite(BI2, robotOps::LOW);
+
+}
 void CRobot::init_sevSeg()
 {
     _sevSegDigitSelector = 0;
@@ -300,7 +330,7 @@ void CRobot::sevSegUpdate()
     gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
     gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
     gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
-    gpioWrite(robotOps::seg_e, (character & _sevSegMap['e']) > 0);
+    gpioWrite(robotOps::seg_e, (character & _sevSegMap['e0']) > 0);
     gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
     gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
     gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
@@ -450,9 +480,141 @@ void CRobot::extractArenaInfo(std::string response)
         _target3 = std::stoi(response.substr(start3, start4 - start3 - 1));
         _target4 = std::stoi(response.substr(start4, response.find_last_of(',') - start4));
 
-        std::string _sevSegScoreMessage = std::to_string(_target1).at(0) + "." + std::to_string(_target2).at(0) + "." + std::to_string(_target3).at(0) + "." + std::to_string(_target4).at(0);
+        std::string target1, target2, target3, target4;
+
+        target1 = std::to_string(_target1).at(0);
+        target2 = std::to_string(_target2).at(0);
+        target3 = std::to_string(_target3).at(0);
+        target4 = std::to_string(_target4).at(0);
+
+        std::string _sevSegScoreMessage = target1 + "." + target2 + "." + target3 + "." + target4;
         sevSegMessage(_sevSegScoreMessage);
     }
+}
+
+void CRobot::markers()
+{
+    cv::VideoCapture vid;
+    vid.open(cv::CAP_V4L2);
+    vid.set(cv::CAP_PROP_FRAME_WIDTH, CAM_WIDTH);
+    vid.set(cv::CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT);
+
+    cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
+
+    if (vid.isOpened() == true)
+    {
+        do
+        {
+            cv::Mat frame;
+            vid >> frame;
+
+            if (frame.empty() == false)
+            {
+
+                cv::aruco::detectMarkers(frame, dictionary, corners, ids);
+                if (ids.size() > 0)
+                    {
+                        for (i = 0; i < ids.size(); i++)
+                        {
+                            cv::aruco::drawDetectedMarkers(frame, corners, ids);
+                            area = std::abs((((corners[0][0].x*corners[0][1].y) - (corners[0][0].y*corners[0][1].x)) + ((corners[0][1].x*corners[0][2].y) - (corners[0][1].y*corners[0][2].x)) + ((corners[0][2].x*corners[0][3].y) - (corners[0][2].y*corners[0][3].x)) + ((corners[0][3].x*corners[0][0].y) - (corners[0][3].y*corners[0][0].x))) / 2);
+                            //std::cout << area << i << std::endl;
+                        }
+                    }
+            }
+            cv::flip(frame, frame, -1);
+            drive();
+            fire();
+            cv::imshow(CANVAS_NAME, frame);
+        }
+        while (cv::waitKey(10) != 'q');
+    }
+}
+
+void CRobot::goForward()
+{
+    std::cout << "going forward\n";
+    gpioWrite(AI1, 1);
+    gpioWrite(AI2,0);
+    gpioWrite(BI1, 0);
+    gpioWrite(BI2, 1);
+    //pwmFreq = 0;
+    gpioHardwarePWM(PWMA, 1000, 0.5*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, 0.5*DUTY_CYCLE);
+//    for (i = 0; i < DUTY_CYCLE; i++)
+//    {
+//        gpioHardwarePWM(PWMA, pwmFreq, DUTY_CYCLE);
+//        gpioHardwarePWM(PWMB, pwmFreq, DUTY_CYCLE);
+//        //gpioHardwarePWM()
+//        gpioDelay(1000);
+//        //gpioDelay(1000);
+//        pwmFreq++;
+//
+//    }
+}
+
+void CRobot::goLeft()
+{
+    std::cout << "going left" << std::endl;
+    gpioWrite(AI1, 0);
+    gpioWrite(AI2,0);
+    gpioWrite(BI1, 0);
+    gpioWrite(BI2, 0);
+    gpioHardwarePWM(PWMA, 1000, 0.75*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, 0.75*DUTY_CYCLE);
+}
+
+void CRobot::goRight()
+{
+
+}
+
+void CRobot::goReverse()
+{
+
+}
+
+void CRobot::stop()
+{
+    std::cout << "stopped" << std::endl;
+    gpioWrite(AI1, 0);
+    gpioWrite(AI2,0);
+    gpioWrite(BI1, 0);
+    gpioWrite(BI2, 0);
+    gpioHardwarePWM(PWMA, 1000, 0*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, 0*DUTY_CYCLE);
+}
+
+void CRobot::drive()
+{
+    if(ids.size() > 0)
+    {
+        for(i = 0; i < ids.size(); i++ )
+        {
+            //std::cout << i_drive << std::endl;
+            if (ids[i] == 2 && area >= _qrForwardAreaLow && area <= _qrForwardAreaHigh)
+            {
+                goForward();
+            }
+            if (ids[i] == 2 && area >= _qrStopAreaLow && area <= _qrStopAreaHigh)
+            {
+                stop();
+            }
+        }
+    }
+    else
+    {
+        stop();
+    }
+}
+
+void CRobot::fire()
+{
+//    if (ids[i] == 2  && area >= 15100)
+//    {
+//        gpioServo(SERVO1, 2000);
+//        gpioServo(SERVO1, 1500);
+//    }
 }
 
 void CRobot::draw()
@@ -485,8 +647,14 @@ void CRobot::draw()
     std::this_thread::sleep_for(std::chrono::seconds(2));
     sevSegMessage("9576.");
     std::this_thread::sleep_for(std::chrono::seconds(2));*/
+    cv::createTrackbar("Forward Low Area", "Settings", &_qrForwardAreaLow, 200000);
+    cv::createTrackbar("Forward High Area", "Settings", &_qrForwardAreaHigh, 200000);
+    cv::createTrackbar("Stop Low Area", "Settings", &_qrStopAreaLow, 200000);
+    cv::createTrackbar("Stop High Area", "Settings", &_qrStopAreaHigh, 200000);
 }
 
 void CRobot::update()
 {
+    markers();
+    //drive();
 }

@@ -8,6 +8,24 @@
 #include <map>
 #include <vector>
 #include <mutex>
+#include <cmath>
+#include <opencv2/opencv.hpp>
+#include <opencv2/aruco.hpp>
+#include "pigpio.h"
+
+#define CANVAS_NAME "piCam"
+#define CAM_WIDTH 320
+#define CAM_HEIGHT 180
+#define AI1 6
+#define AI2 5
+#define BI1 19
+#define BI2 26
+#define PWMA 12
+#define PWMB 13
+#define STBY 9
+#define SERVO1 4
+#define DUTY_CYCLE 1000000
+
 
 
 class CRobot : public CBase4618
@@ -33,6 +51,25 @@ class CRobot : public CBase4618
         void sevSegUpdate();
         void sevSegMessage(std::string message);
         char sevSegChar(int digit);
+
+        // Camera & ArUco
+        void markers();
+        int i = 0;
+        float area;
+        std::vector<int> ids;
+        std::vector<std::vector<cv::Point2f> > corners;
+
+        // Movement Functions
+        void goForward();
+        void goLeft();
+        void goRight();
+        void goReverse();
+        void stop();
+        void drive();
+
+        // servo
+        void fire();
+
 
         // Ultrasonic sensor
         double _usPreviousTime;
@@ -63,6 +100,12 @@ class CRobot : public CBase4618
         int _target3;
         int _target4;
         void extractArenaInfo(std::string response);
+
+        // Settings
+        int _qrForwardAreaHigh;
+        int _qrForwardAreaLow;
+        int _qrStopAreaHigh;
+        int _qrStopAreaLow;
 
         // Threads
         std::vector<std::thread> _threadVector;

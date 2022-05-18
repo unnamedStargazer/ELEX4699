@@ -83,7 +83,7 @@ void CBase4618::run()
 			_waitKeyReceived = cv::waitKey(10);
 			draw();
 			update();
-			if (_waitKeyReceived == 'q' || _waitKeyReceived == 'Q' || _stop == true)
+			if (_waitKeyReceived == 'q' || _waitKeyReceived == 'Q' || _stop == false)
 			{
 				_waitKeyFlag = true;
 				_stop = true;
