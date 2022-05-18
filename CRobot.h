@@ -14,8 +14,8 @@
 #include "pigpio.h"
 
 #define CANVAS_NAME "piCam"
-#define CAM_WIDTH 320
-#define CAM_HEIGHT 180
+#define CAM_WIDTH 640
+#define CAM_HEIGHT 360
 #define AI1 6
 #define AI2 5
 #define BI1 19
@@ -25,6 +25,7 @@
 #define STBY 9
 #define SERVO1 4
 #define DUTY_CYCLE 1000000
+#define DUTY_PERCENT 0.3
 
 
 
@@ -106,6 +107,8 @@ class CRobot : public CBase4618
         int _qrForwardAreaLow;
         int _qrStopAreaHigh;
         int _qrStopAreaLow;
+        int _threshholdLow;
+        int _threshholdHigh;
 
         // Threads
         std::vector<std::thread> _threadVector;

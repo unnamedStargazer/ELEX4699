@@ -20,8 +20,10 @@ CRobot::CRobot()
     // Settings
     _qrForwardAreaHigh = 20000;
     _qrForwardAreaLow = 0;
-    _qrStopAreaHigh = 50000;
-    _qrStopAreaLow = 15500;
+    _qrStopAreaHigh = 440;
+    _qrStopAreaLow = 380;
+    _threshholdLow = 0;
+    _threshholdHigh = 500;
 
     // Generate cv window
     cv::imshow("Program exit", cv::Mat::zeros(cv::Size(100, 100), CV_8UC3));
@@ -40,7 +42,7 @@ CRobot::CRobot()
     // Initialise others
     init_gpio();
     init_sevSeg();
-    init_ultrasonic();
+    //init_ultrasonic();
     init_threads(); // Seven-segment, ultrasonic, server start, server main, client
 }
 
@@ -144,8 +146,8 @@ void CRobot::init_threads()
 {
     _threadVector.push_back((std::thread(&CRobot::thread_sevSegUpdate, this)));
     _threadVector.back().detach();
-    _threadVector.push_back((std::thread(&CRobot::thread_ultrasonicUpdate, this)));
-    _threadVector.back().detach();
+    //_threadVector.push_back((std::thread(&CRobot::thread_ultrasonicUpdate, this)));
+    //_threadVector.back().detach();
     _threadVector.push_back((std::thread(&CRobot::thread_commServerStart, this)));
     _threadVector.back().detach();
     _threadVector.push_back((std::thread(&CRobot::thread_commServerMain, this)));
@@ -488,7 +490,7 @@ void CRobot::extractArenaInfo(std::string response)
         target4 = std::to_string(_target4).at(0);
 
         std::string _sevSegScoreMessage = target1 + "." + target2 + "." + target3 + "." + target4;
-        sevSegMessage(_sevSegScoreMessage);
+        //sevSegMessage(_sevSegScoreMessage);
     }
 }
 
@@ -517,14 +519,15 @@ void CRobot::markers()
                         for (i = 0; i < ids.size(); i++)
                         {
                             cv::aruco::drawDetectedMarkers(frame, corners, ids);
-                            area = std::abs((((corners[0][0].x*corners[0][1].y) - (corners[0][0].y*corners[0][1].x)) + ((corners[0][1].x*corners[0][2].y) - (corners[0][1].y*corners[0][2].x)) + ((corners[0][2].x*corners[0][3].y) - (corners[0][2].y*corners[0][3].x)) + ((corners[0][3].x*corners[0][0].y) - (corners[0][3].y*corners[0][0].x))) / 2);
-                            //std::cout << area << i << std::endl;
+                            area = std::abs((((corners[i][0].x*corners[i][1].y) - (corners[i][0].y*corners[i][1].x)) + ((corners[i][1].x*corners[i][2].y) - (corners[i][1].y*corners[i][2].x)) + ((corners[i][2].x*corners[i][3].y) - (corners[i][2].y*corners[i][3].x)) + ((corners[i][3].x*corners[i][0].y) - (corners[i][3].y*corners[i][0].x))) / 2);
+                            sevSegMessage(std::to_string(area));
+                            std::cout << area << std::endl;
                         }
                     }
             }
             cv::flip(frame, frame, -1);
             drive();
-            fire();
+            //fire();
             cv::imshow(CANVAS_NAME, frame);
         }
         while (cv::waitKey(10) != 'q');
@@ -533,14 +536,14 @@ void CRobot::markers()
 
 void CRobot::goForward()
 {
-    std::cout << "going forward\n";
+    //std::cout << "going forward\n";
     gpioWrite(AI1, 1);
     gpioWrite(AI2,0);
     gpioWrite(BI1, 0);
     gpioWrite(BI2, 1);
     //pwmFreq = 0;
-    gpioHardwarePWM(PWMA, 1000, 0.5*DUTY_CYCLE);
-    gpioHardwarePWM(PWMB, 1000, 0.5*DUTY_CYCLE);
+    gpioHardwarePWM(PWMA, 1000, DUTY_PERCENT*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, DUTY_PERCENT*DUTY_CYCLE);
 //    for (i = 0; i < DUTY_CYCLE; i++)
 //    {
 //        gpioHardwarePWM(PWMA, pwmFreq, DUTY_CYCLE);
@@ -556,66 +559,112 @@ void CRobot::goForward()
 void CRobot::goLeft()
 {
     std::cout << "going left" << std::endl;
-    gpioWrite(AI1, 0);
+    gpioWrite(AI1, 1);
     gpioWrite(AI2,0);
-    gpioWrite(BI1, 0);
+    gpioWrite(BI1, 1);
     gpioWrite(BI2, 0);
-    gpioHardwarePWM(PWMA, 1000, 0.75*DUTY_CYCLE);
-    gpioHardwarePWM(PWMB, 1000, 0.75*DUTY_CYCLE);
+    gpioHardwarePWM(PWMA, 1000, DUTY_PERCENT*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, DUTY_PERCENT*DUTY_CYCLE);
 }
 
 void CRobot::goRight()
 {
-
+    std::cout << "going right" << std::endl;
+    gpioWrite(AI1, 0);
+    gpioWrite(AI2,1);
+    gpioWrite(BI1, 0);
+    gpioWrite(BI2, 1);
+    gpioHardwarePWM(PWMA, 1000, DUTY_PERCENT*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, DUTY_PERCENT*DUTY_CYCLE);
 }
 
 void CRobot::goReverse()
 {
-
-}
-
-void CRobot::stop()
-{
-    std::cout << "stopped" << std::endl;
     gpioWrite(AI1, 0);
     gpioWrite(AI2,0);
     gpioWrite(BI1, 0);
     gpioWrite(BI2, 0);
+    gpioHardwarePWM(PWMA, 1000, DUTY_PERCENT*DUTY_CYCLE);
+    gpioHardwarePWM(PWMB, 1000, DUTY_PERCENT*DUTY_CYCLE);
+}
+
+void CRobot::stop()
+{
+    //std::cout << "stopped" << std::endl;
+    gpioWrite(AI1, 1);
+    gpioWrite(AI2,1);
+    gpioWrite(BI1, 1);
+    gpioWrite(BI2, 1);
     gpioHardwarePWM(PWMA, 1000, 0*DUTY_CYCLE);
     gpioHardwarePWM(PWMB, 1000, 0*DUTY_CYCLE);
 }
 
 void CRobot::drive()
 {
+    //static int firstLeftTurnCount = 0;
+
     if(ids.size() > 0)
     {
-        for(i = 0; i < ids.size(); i++ )
+        for(i = 0; i < ids.size(); i++)
         {
-            //std::cout << i_drive << std::endl;
-            if (ids[i] == 2 && area >= _qrForwardAreaLow && area <= _qrForwardAreaHigh)
+            if(ids[i] == 30 && area >= 0 && area <= 350)
             {
                 goForward();
+
             }
-            if (ids[i] == 2 && area >= _qrStopAreaLow && area <= _qrStopAreaHigh)
+            else if (ids[i] == 30 && area >= 350)
+            {
+                stop();
+                goRight();
+                usleep(100000);
+                stop();
+
+            }
+            if(ids[i] == 26 && area >= 0 && area <= 2000)
+            {
+                goForward();
+
+            }
+            else if(ids[i] == 26 && area>= 2000)
             {
                 stop();
             }
+            if (ids[i] == 21 && area >= 2200) {
+                //stop
+                //shoot
+            }
+            else if (ids[i] == 21 && area <= 2200)
+            {
+                goLeft();
+                usleep(100000);
+                stop();
+            }
+
+
         }
-    }
-    else
-    {
-        stop();
     }
 }
 
-void CRobot::fire()
-{
-//    if (ids[i] == 2  && area >= 15100)
+//void CRobot::fire()
+//{
+//    if(ids.size() > 0)
 //    {
-//        gpioServo(SERVO1, 2000);
-//        gpioServo(SERVO1, 1500);
+//       for (i = 0; i < ids.size(); i++)
+//        {
+//            if (ids[i] == 2  && area >= 12000)
+//            {
+////            gpioServo(SERVO1, 500); // Load = 500
+////            gpioDelay(1000);
+//            gpioServo(SERVO1, 2500); // Fire = 2500
+//            }
+//        }
 //    }
-}
+//    else
+//    {
+////        gpioServo(SERVO1, 500);
+//    }
+//}
+
 
 void CRobot::draw()
 {
@@ -647,14 +696,15 @@ void CRobot::draw()
     std::this_thread::sleep_for(std::chrono::seconds(2));
     sevSegMessage("9576.");
     std::this_thread::sleep_for(std::chrono::seconds(2));*/
-    cv::createTrackbar("Forward Low Area", "Settings", &_qrForwardAreaLow, 200000);
-    cv::createTrackbar("Forward High Area", "Settings", &_qrForwardAreaHigh, 200000);
-    cv::createTrackbar("Stop Low Area", "Settings", &_qrStopAreaLow, 200000);
-    cv::createTrackbar("Stop High Area", "Settings", &_qrStopAreaHigh, 200000);
+    //cv::createTrackbar("Forward Low Area", "Settings", &_qrForwardAreaLow, 200000);
+    //cv::createTrackbar("Forward High Area", "Settings", &_qrForwardAreaHigh, 200000);
+    cv::createTrackbar("Low Threshhold", "Settings", &_threshholdLow, 1000);
+    cv::createTrackbar("High Threshhold", "Settings", &_threshholdHigh, 1000);
 }
 
 void CRobot::update()
 {
     markers();
+    //startup();
     //drive();
 }

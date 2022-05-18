@@ -358,6 +358,28 @@ void robotCar()
 }*/
 
 
+void motorTest()
+{
+
+    int input = -1;
+
+    if (gpioInitialise() < 0)
+    {
+        input = 0;
+    }
+
+    gpioSetMode(4, 1);
+
+    while (input != 0)
+    {
+        std::cout << "> ";
+        std::cin >> input;
+        gpioServo(4, input);
+    }
+
+    gpioTerminate();
+}
+
 int main(int argc, char* argv[])
 {
 	std::string cmd;
@@ -386,6 +408,9 @@ int main(int argc, char* argv[])
 		break;
         case '0':
         break;
+        case '2':
+            motorTest();
+            break;
         default:
             std::cout << "Invalid entry, try again." << std::endl;
             cmd = "error";
