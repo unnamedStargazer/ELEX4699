@@ -384,8 +384,8 @@ int main(int argc, char* argv[])
 {
 	std::string cmd;
 
-	do
-	{
+	//do
+	//{
         //std::cin.clear();
 		//std::cout.flush();
 		print_menu();
@@ -415,6 +415,6 @@ int main(int argc, char* argv[])
             std::cout << "Invalid entry, try again." << std::endl;
             cmd = "error";
             break;
-		}
-	} while (cmd.front() != '0'); //&& cmd != "error"
+		//}
+	//} while (cmd.front() != '0'); //&& cmd != "error"
 }

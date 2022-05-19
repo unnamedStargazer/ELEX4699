@@ -9,6 +9,7 @@
 #include <vector>
 #include <mutex>
 #include <cmath>
+#include <fstream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
 #include "pigpio.h"
@@ -24,7 +25,7 @@
 #define PWMB 13
 #define STBY 9
 #define SERVO1 4
-#define DUTY_CYCLE 1000000
+#define DUTY_CYCLE_MAX 1000000
 #define DUTY_PERCENT 0.3
 
 
@@ -41,6 +42,11 @@ class CRobot : public CBase4618
     protected:
 
     private:
+        // File
+        std::string _filename = "params.txt";
+        std::ifstream _inFile;
+        std::ofstream _outFile;
+
         // Seven segment
         std::map<char, int> _sevSegMap;
         std::string _sevSegMessage;
@@ -56,9 +62,10 @@ class CRobot : public CBase4618
         // Camera & ArUco
         void markers();
         int i = 0;
-        float area;
-        std::vector<int> ids;
-        std::vector<std::vector<cv::Point2f> > corners;
+        //float _area;
+        std::vector<int> _ids;
+        std::vector<float> _area;
+        std::vector<std::vector<cv::Point2f> > _corners;
 
         // Movement Functions
         void goForward();
@@ -68,9 +75,8 @@ class CRobot : public CBase4618
         void stop();
         void drive();
 
-        // servo
+        // Servo
         void fire();
-
 
         // Ultrasonic sensor
         double _usPreviousTime;
@@ -103,12 +109,18 @@ class CRobot : public CBase4618
         void extractArenaInfo(std::string response);
 
         // Settings
-        int _qrForwardAreaHigh;
-        int _qrForwardAreaLow;
-        int _qrStopAreaHigh;
-        int _qrStopAreaLow;
-        int _threshholdLow;
-        int _threshholdHigh;
+        int _threshholdLow; // trackbar
+        int _threshholdHigh; // trackbar
+        int _currentState;
+        int _pwmFreq;
+        float _dutyPercentForward;
+        float _dutyPercentLeft;
+        float _dutyPercentRight;
+        float _dutyPercentReverse;
+        float _c1areaMin;
+        float _c1areaMax;
+        float _c2areaMin;
+        int _c2sleep;
 
         // Threads
         std::vector<std::thread> _threadVector;
@@ -124,6 +136,7 @@ class CRobot : public CBase4618
         void init_gpio();
         void init_threads();
         void init_ultrasonic();
+        void init_file();
 };
 
 namespace robotOps

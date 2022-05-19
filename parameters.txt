@@ -1,0 +1,14 @@
+_threshholdLow	0
+_threshholdHigh	500
+_currentState	1
+_pwmFreq	1000
+_dutyPercentForward	0.3
+_dutyPercentLeft	0.3
+_dutyPercentRight	0.3
+_dutyPercentReverse	0.3
+_c1areaMin	0
+_c1areaMax	350
+_c2areaMin	350
+_c2sleep	100000
+_c3areaMin	0
+_c3areaMax	2000
