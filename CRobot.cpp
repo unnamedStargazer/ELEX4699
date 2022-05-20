@@ -1,8 +1,21 @@
 #include "CRobot.h"
 #include <thread>
 #include <string>
+#include <vector>
 
 CRobot::CRobot()
+{
+    _useManual = false;
+    init_main();
+}
+
+CRobot::CRobot(bool manual)
+{
+    _useManual = true;
+    init_main();
+}
+
+void CRobot::init_main()
 {
 	// Reset flags
 	_stop = false;
@@ -15,10 +28,12 @@ CRobot::CRobot()
 	_target2 = 0;
 	_target3 = 0;
 	_target4 = 0;
+	_qrIndex = 0;
 
 	// Generate cv window
 	cv::imshow("Program exit", cv::Mat::zeros(cv::Size(100, 100), CV_8UC3));
 	cv::imshow("Settings", cv::Mat::zeros(cv::Size(400, 400), CV_8UC3));
+	_frame = cv::Mat::zeros(cv::Size(400, 400), CV_8UC3);
 
 	// Initialise GPIO
 	gpioTerminate();
@@ -47,6 +62,8 @@ CRobot::~CRobot()
 	gpioWrite(robotOps::seg_dig2, robotOps::OFF);
 	gpioWrite(robotOps::seg_dig3, robotOps::OFF);
 	gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+	stop();
+
 	gpioTerminate();
 }
 
@@ -73,6 +90,7 @@ void CRobot::init_gpio()
 }
 void CRobot::init_sevSeg()
 {
+    _sevSegPreviousTime = 0;
 	_sevSegDigitSelector = 0;
 	_sevSegChar = '_';
 	sevSegMessage("INIT");
@@ -140,18 +158,25 @@ void CRobot::init_threads()
 	_threadVector.back().detach();
 	//_threadVector.push_back((std::thread(&CRobot::thread_ultrasonicUpdate, this)));
 	//_threadVector.back().detach();
-	_threadVector.push_back((std::thread(&CRobot::thread_commServerStart, this)));
-	_threadVector.back().detach();
-	_threadVector.push_back((std::thread(&CRobot::thread_commServerMain, this)));
-	_threadVector.back().detach();
-	_threadVector.push_back((std::thread(&CRobot::thread_commClientStart, this)));
-	_threadVector.back().detach();
-	_threadVector.push_back((std::thread(&CRobot::thread_commClientMain, this)));
-	_threadVector.back().detach();
+	//std::thread threadSevSeg (&CRobot::thread_sevSegUpdate, this);
+	//threadSevSeg.detach();
+
+	if (_useManual)
+	{
+        _threadVector.push_back((std::thread(&CRobot::thread_commServerStart, this)));
+        _threadVector.back().detach();
+        _threadVector.push_back((std::thread(&CRobot::thread_commServerMain, this)));
+        _threadVector.back().detach();
+        _threadVector.push_back((std::thread(&CRobot::thread_commClientStart, this)));
+        _threadVector.back().detach();
+        _threadVector.push_back((std::thread(&CRobot::thread_commClientMain, this)));
+        _threadVector.back().detach();
+	}
 }
 
 void CRobot::init_ultrasonic()
 {
+/*
 		gpioSetMode(robotOps::us_echo, PI_INPUT);
 		gpioSetMode(robotOps::us_trig, PI_OUTPUT);
 
@@ -162,7 +187,7 @@ void CRobot::init_ultrasonic()
 		_usEchoFallingEdge = 0; // Time at which the falling edge on the echo pin occurs
 		_usDistance = 0; // In metres
 		_usTrigState = 1; // Used to create a 60 ms period
-		_usEchoState = 1;
+		_usEchoState = 1;*/
 }
 
 void CRobot::init_file()
@@ -170,21 +195,105 @@ void CRobot::init_file()
 	_filename = "parameters.txt";
 	std::string variableName;
 	_inFile.open(_filename);
-	
-	inFile >> variableName >> _threshholdLow;
-	inFile >> variableName >> _threshholdHigh;
-	inFile >> variableName >> _currentState;
-	inFile >> variableName >> _pwmFreq;
-	inFile >> variableName >> _dutyPercentForward;
-	inFile >> variableName >> _dutyPercentLeft;
-	inFile >> variableName >> _dutyPercentRight;
-	inFile >> variableName >> _dutyPercentReverse;
-	inFile >> variableName >> _c1areaMin;
-	inFile >> variableName >> _c1areaMax;
-	inFile >> variableName >> _c2areaMin;
-	inFile >> variableName >> _c2sleep;
-	inFile >> variableName >> _c3areaMin;
-	inFile >> variableName >> _c3areaMax;
+
+	_inFile >> variableName >> _threshholdLow;
+	std::cout << variableName << " " << _threshholdLow << std::endl;
+
+	_inFile >> variableName >> _threshholdHigh;
+	std::cout << variableName << " " << _threshholdHigh << std::endl;
+
+	_inFile >> variableName >> _sevSegUpdateTime;
+	std::cout << variableName << " " << _sevSegUpdateTime << std::endl;
+
+	_inFile >> variableName >> _currentState;
+	std::cout << variableName << " " << _currentState << std::endl;
+
+	_inFile >> variableName >> _pwmFreq;
+	std::cout << variableName << " " << _pwmFreq << std::endl;
+
+	_inFile >> variableName >> _dutyPercentForward;
+	std::cout << variableName << " " << _dutyPercentForward << std::endl;
+
+	_inFile >> variableName >> _dutyPercentLeft;
+	std::cout << variableName << " " << _dutyPercentLeft << std::endl;
+
+	_inFile >> variableName >> _dutyPercentRight;
+	std::cout << variableName << " " << _dutyPercentRight << std::endl;
+
+	_inFile >> variableName >> _dutyPercentReverse;
+	std::cout << variableName << " " << _dutyPercentReverse << std::endl;
+
+	_inFile >> variableName >> _c1areaMax;
+	std::cout << variableName << " " << _c1areaMax << std::endl;
+
+	_inFile >> variableName >> _c2sleep;
+	std::cout << variableName << " " << _c2sleep << std::endl;
+
+	_inFile >> variableName >> _c3sleep;
+	std::cout << variableName << " " << _c3sleep << std::endl;
+
+	_inFile >> variableName >> _c4areaMax;
+	std::cout << variableName << " " << _c4areaMax << std::endl;
+
+	_inFile >> variableName >> _c5sleep;
+	std::cout << variableName << " " << _c5sleep << std::endl;
+
+	_inFile >> variableName >> _c6areaMax;
+	std::cout << variableName << " " << _c6areaMax << std::endl;
+
+	_inFile >> variableName >> _c7sleep;
+	std::cout << variableName << " " << _c7sleep << std::endl;
+
+	_inFile >> variableName >> _c8sleep;
+	std::cout << variableName << " " << _c8sleep << std::endl;
+
+	_inFile >> variableName >> _c9areaMax;
+	std::cout << variableName << " " << _c9areaMax << std::endl;
+
+	_inFile >> variableName >> _c10sleep;
+	std::cout << variableName << " " << _c10sleep << std::endl;
+
+	_inFile >> variableName >> _c11areaMax;
+	std::cout << variableName << " " << _c11areaMax << std::endl;
+
+	_inFile >> variableName >> _c12sleep;
+	std::cout << variableName << " " << _c12sleep << std::endl;
+
+	_inFile >> variableName >> _c13sleep;
+	std::cout << variableName << " " << _c13sleep << std::endl;
+
+	_inFile >> variableName >> _c14sleep1;
+	std::cout << variableName << " " << _c14sleep1 << std::endl;
+
+	_inFile >> variableName >> _c14sleep2;
+	std::cout << variableName << " " << _c14sleep2 << std::endl;
+
+	_inFile >> variableName >> _c15sleep1;
+	std::cout << variableName << " " << _c15sleep1 << std::endl;
+
+	_inFile >> variableName >> _c15sleep2;
+	std::cout << variableName << " " << _c15sleep2 << std::endl;
+
+	_inFile >> variableName >> _c16sleep1;
+	std::cout << variableName << " " << _c16sleep1 << std::endl;
+
+	_inFile >> variableName >> _c16sleep2;
+	std::cout << variableName << " " << _c16sleep2 << std::endl;
+
+	_inFile >> variableName >> _c17areaMax;
+	std::cout << variableName << " " << _c17areaMax << std::endl;
+
+	_inFile >> variableName >> _c18sleep;
+	std::cout << variableName << " " << _c18sleep << std::endl;
+
+	_inFile >> variableName >> _c19sleep;
+	std::cout << variableName << " " << _c19sleep << std::endl;
+
+	_inFile >> variableName >> _c20sleep;
+	std::cout << variableName << " " << _c20sleep << std::endl;
+
+	_inFile >> variableName >> _c21sleep;
+	std::cout << variableName << " " << _c21sleep << std::endl;
 }
 
 void CRobot::thread_sevSegUpdate()
@@ -196,6 +305,16 @@ void CRobot::thread_sevSegUpdate()
 		sevSegUpdate();
 	}
 }
+
+/*void CRobot::thread_sevSegUpdate(CRobot* ptrToSelf)
+{
+	std::cout << "Thread sevSegUpdate started." << std::endl;
+
+	while (!ptrToSelf->_stop)
+	{
+		ptrToSelf->sevSegUpdate();
+	}
+}*/
 
 void CRobot::thread_ultrasonicUpdate()
 {
@@ -302,59 +421,67 @@ char CRobot::sevSegChar(int digit)
 
 void CRobot::sevSegUpdate()
 {
-	auto end_time = std::chrono::system_clock::now() + std::chrono::microseconds(1000);
+	//auto end_time = std::chrono::system_clock::now() + std::chrono::microseconds(1000);
 
-	_sevSegDigitSelector < 4 ? _sevSegDigitSelector++ : _sevSegDigitSelector = 1; // Iterate between digits 1 - 4; return to 1 if greater than 4
+	_sevSegCurrentTime = cv::getTickCount();
 
-	char character = sevSegChar(_sevSegDigitSelector);
+    if (((_sevSegCurrentTime - _sevSegPreviousTime) / cv::getTickFrequency()) >= _sevSegUpdateTime)
+    {
+        //_sevSegDigitSelector = 1;
+        _sevSegDigitSelector < 4 ? _sevSegDigitSelector++ : _sevSegDigitSelector = 1; // Iterate between digits 1 - 4; return to 1 if greater than 4
 
-	switch (_sevSegDigitSelector)
-	{
-		case 1:
-			gpioWrite(robotOps::seg_dig1, robotOps::ON);
-			gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-			break;
+        _sevSegPreviousTime = _sevSegCurrentTime;
 
-		case 2:
-			gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig2, robotOps::ON);
-			gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-			break;
+        char character = sevSegChar(_sevSegDigitSelector);
 
-		case 3:
-			gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig3, robotOps::ON);
-			gpioWrite(robotOps::seg_dig4, robotOps::OFF);
-			break;
+        switch (_sevSegDigitSelector)
+        {
+            case 1:
+                gpioWrite(robotOps::seg_dig1, robotOps::ON);
+                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+                break;
 
-		case 4:
-			gpioWrite(robotOps::seg_dig1, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig2, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig3, robotOps::OFF);
-			gpioWrite(robotOps::seg_dig4, robotOps::ON);
-			break;
+            case 2:
+                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig2, robotOps::ON);
+                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+                break;
+
+            case 3:
+                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig3, robotOps::ON);
+                gpioWrite(robotOps::seg_dig4, robotOps::OFF);
+                break;
+
+            case 4:
+                gpioWrite(robotOps::seg_dig1, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig2, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig3, robotOps::OFF);
+                gpioWrite(robotOps::seg_dig4, robotOps::ON);
+                break;
+        }
+
+        // Apply character mask to the current digit and write to display
+        gpioWrite(robotOps::seg_a, (character & _sevSegMap['a']) > 0);
+        gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
+        gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
+        gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
+        gpioWrite(robotOps::seg_e, (character & _sevSegMap['e']) > 0);
+        gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
+        gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
+        gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
+
+        //std::this_thread::sleep_until(end_time);
 	}
-
-	// Apply character mask to the current digit and write to display
-	gpioWrite(robotOps::seg_a, (character & _sevSegMap['a']) > 0);
-	gpioWrite(robotOps::seg_b, (character & _sevSegMap['b']) > 0);
-	gpioWrite(robotOps::seg_c, (character & _sevSegMap['c']) > 0);
-	gpioWrite(robotOps::seg_d, (character & _sevSegMap['d']) > 0);
-	gpioWrite(robotOps::seg_e, (character & _sevSegMap['e0']) > 0);
-	gpioWrite(robotOps::seg_f, (character & _sevSegMap['f']) > 0);
-	gpioWrite(robotOps::seg_g, (character & _sevSegMap['g']) > 0);
-	gpioWrite(robotOps::seg_dp, (character & _sevSegMap['p']) > 0);
-
-	std::this_thread::sleep_until(end_time);
 }
 
 void CRobot::ultrasonicUpdate()
 {
-	_usCurrentTime = cv::getTickCount();
+	/*_usCurrentTime = cv::getTickCount();
 
 	if (((_usCurrentTime - _usPreviousTime) / cv::getTickFrequency()) >= 0.0001) // Generate 100 us TRIG pulse
 	{
@@ -392,7 +519,9 @@ void CRobot::ultrasonicUpdate()
 		_usTrigState = 1; // Reset TRIG state after the 60 ms period
 		_usEchoState = 1; // Reset ECHO state after the 60 ms period
 		_usDistance = ((_usEchoFallingEdge - _usEchoRisingEdge) / cv::getTickFrequency()) * 340 / 2; // Distance in metres
-	}
+	}*/
+
+
 }
 
 void CRobot::commServerMain()
@@ -421,30 +550,49 @@ void CRobot::commServerMain()
 			{
 				sevSegMessage("drv.f");
 				_server.send_string("Drive forward");
+				goForward();
 			}
 
-			else if (serverCommand.at(index) == "k")
+			else if (serverCommand.at(index) == ",")
 			{
 				sevSegMessage("drv.r");
 				_server.send_string("Reverse");
+				goReverse();
 			}
 
 			else if (serverCommand.at(index) == "j")
 			{
 				sevSegMessage("trn.l");
 				_server.send_string("Turn left");
+				goLeft();
 			}
 
 			else if (serverCommand.at(index) == "l")
 			{
 				sevSegMessage("trn.r");
 				_server.send_string("Turn right");
+				goRight();
 			}
 
-			else if (serverCommand.at(index) == ",")
+			else if (serverCommand.at(index) == "k")
 			{
 				sevSegMessage("Brak");
 				_server.send_string("Brake");
+				stop();
+			}
+
+			else if (serverCommand.at(index) == ";")
+			{
+				sevSegMessage("load");
+				_server.send_string("Load");
+				load();
+			}
+
+			else if (serverCommand.at(index) == "'")
+			{
+				sevSegMessage("Fire");
+				_server.send_string("Fire");
+				fire();
 			}
 
 			else
@@ -508,52 +656,116 @@ void CRobot::extractArenaInfo(std::string response)
 
 void CRobot::markers()
 {
-	_area.clear();
-	cv::VideoCapture vid;
-	vid.open(cv::CAP_V4L2);
-	vid.set(cv::CAP_PROP_FRAME_WIDTH, CAM_WIDTH);
-	vid.set(cv::CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT);
+    _vid.open(cv::CAP_V4L2);
+	_vid.set(cv::CAP_PROP_FRAME_WIDTH, CAM_WIDTH);
+	_vid.set(cv::CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT);
 
 	cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
 
-	if (vid.isOpened() == true)
+	if (_vid.isOpened() == true)
 	{
 		do
 		{
-			cv::Mat frame;
-			vid >> frame;
+            _vid >> _frame;
+            //usleep(1000000);
 
-			if (frame.empty() == false)
+			if (_frame.empty() == false)
 			{
-
-				cv::aruco::detectMarkers(frame, dictionary, _corners, _ids);
+				cv::aruco::detectMarkers(_frame, dictionary, _corners, _ids);
 				if (_ids.size() > 0)
-					{
-						for (i = 0; i < _ids.size(); i++)
-						{
-							cv::aruco::drawDetectedMarkers(frame, _corners, _ids);
-							_area.push_back(std::abs((((_corners[i][0].x*_corners[i][1].y) - (_corners[i][0].y*_corners[i][1].x)) + ((_corners[i][1].x*_corners[i][2].y) - (_corners[i][1].y*_corners[i][2].x)) + ((_corners[i][2].x*_corners[i][3].y) - (_corners[i][2].y*_corners[i][3].x)) + ((_corners[i][3].x*_corners[i][0].y) - (_corners[i][3].y*_corners[i][0].x))) / 2));
-							sevSegMessage(std::to_string(_area[i]));
-						}
-					}
+                {
+                    for (_qrIndex = 0; _qrIndex < _ids.size(); _qrIndex++)
+                    {
+                        cv::aruco::drawDetectedMarkers(_frame, _corners, _ids);
+                        _area.push_back(std::abs((((_corners[_qrIndex][0].x*_corners[_qrIndex][1].y) - (_corners[_qrIndex][0].y*_corners[_qrIndex][1].x)) + ((_corners[_qrIndex][1].x*_corners[_qrIndex][2].y) - (_corners[_qrIndex][1].y*_corners[_qrIndex][2].x)) + ((_corners[_qrIndex][2].x*_corners[_qrIndex][3].y) - (_corners[_qrIndex][2].y*_corners[_qrIndex][3].x)) + ((_corners[_qrIndex][3].x*_corners[_qrIndex][0].y) - (_corners[_qrIndex][3].y*_corners[_qrIndex][0].x))) / 2));
+                        //sevSegMessage(std::to_string(_area[_qrIndex]));
+                        //std::cout << "updating area... " << _area[_qrIndex] << std::endl;
+                        _xCentre.push_back((((_corners[_qrIndex][0].x + _corners[_qrIndex][3].x) / 2) + ((_corners[_qrIndex][1].x + _corners[_qrIndex][2].x) / 2)) / 2);
+                        //int xcentre = (((_corners[_qrIndex][0].x + _corners[_qrIndex][3].x) / 2) + ((_corners[_qrIndex][1].x + _corners[_qrIndex][2].x) / 2)) / 2;
+                    }
+                }
 			}
-			cv::flip(frame, frame, -1);
+			//sevSegUpdate();
+			cv::flip(_frame, _frame, -1);
+            //\processColour();
 			drive();
+			_area.clear();
+			_xCentre.clear();
 			//fire();
-			cv::imshow(CANVAS_NAME, frame);
+
+			//cv::imshow("LED", _colourFrame);
+			//cv::imshow(CANVAS_NAME, _frame);
+
 		}
 		while (cv::waitKey(10) != 'q'); // while _stop?
 	}
+}
+
+void CRobot::processColour()
+{
+    static int hlow = 60;
+    static int slow = 105;
+    static int vlow = 50;
+    static int hhi = 255;
+    static int shi = 255;
+    static int lhi = 255;
+    cv::createTrackbar("H Low", "Settings", &hlow, 255);
+	cv::createTrackbar("S Low", "Settings", &slow, 255);
+	cv::createTrackbar("V Low", "Settings", &vlow, 255);
+	cv::createTrackbar("H High", "Settings", &hhi, 255);
+	cv::createTrackbar("S High", "Settings", &shi, 255);
+	cv::createTrackbar("V High", "Settings", &lhi, 255);
+
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+
+    cv::cvtColor(_frame, _colourFrame, cv::COLOR_BGR2HSV);
+    cv::inRange(_colourFrame, cv::Scalar(hlow, slow, vlow), cv::Scalar(hhi, shi, lhi), _colourFrame);
+    cv::erode(_colourFrame, _colourFrame, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
+    cv::dilate(_colourFrame, _colourFrame, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
+    cv::dilate(_colourFrame, _colourFrame, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
+    cv::erode(_colourFrame, _colourFrame, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
+    cv::findContours(_colourFrame, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    for (unsigned int index = 0; index < contours.size(); index++)
+    {
+        _pcbArea = cv::boundingRect(contours.at(index));
+        //std::cout << _pcbArea.area() << std::endl;
+
+    }
+}
+
+int CRobot::checkCentre(float& multiplier)
+{
+    if (_xCentre[_qrIndex] >= (CAM_WIDTH / 2 - 50) && _xCentre[_qrIndex] <= (CAM_WIDTH / 2 + 50))
+    {    std::cout << _xCentre[_qrIndex] << " " << "Centred" << std::endl;
+        multiplier = 1.0;
+        return 1;
+    }
+
+    else if (_xCentre[_qrIndex] > CAM_WIDTH / 2)
+    {
+        multiplier = ((float)_xCentre[_qrIndex] - (CAM_WIDTH / 2)) / (CAM_WIDTH / 2);
+        std::cout << _xCentre[_qrIndex] << " " << "Veer left" << " " << multiplier << std::endl;
+        return 0;
+    }
+
+    else if (_xCentre[_qrIndex] < CAM_WIDTH / 2)
+    {
+        multiplier = ((float)_xCentre[_qrIndex]) / (CAM_WIDTH / 2);
+        std::cout << _xCentre[_qrIndex] << " " << "Veer right" << " " << multiplier << std::endl;
+        return 2;
+    }
 }
 
 void CRobot::goForward()
 {
 	//std::cout << "going forward\n";
 	gpioWrite(AI1, 1);
-	gpioWrite(AI2,0);
+	gpioWrite(AI2, 0);
 	gpioWrite(BI1, 0);
 	gpioWrite(BI2, 1);
-	
+
 	gpioHardwarePWM(PWMA, _pwmFreq, _dutyPercentForward * DUTY_CYCLE_MAX);
 	gpioHardwarePWM(PWMB, _pwmFreq, _dutyPercentForward * DUTY_CYCLE_MAX);
 }
@@ -562,29 +774,51 @@ void CRobot::goLeft()
 {
 	std::cout << "going left" << std::endl;
 	gpioWrite(AI1, 1);
-	gpioWrite(AI2,0);
+	gpioWrite(AI2, 0);
 	gpioWrite(BI1, 1);
 	gpioWrite(BI2, 0);
 	gpioHardwarePWM(PWMA, _pwmFreq, _dutyPercentLeft * DUTY_CYCLE_MAX);
-	gpioHardwarePWM(PWMB, _pwmFreq, _dutyPercentLeft * DUTY_CYCLE_MAX);
+	gpioHardwarePWM(PWMB, _pwmFreq, _dutyPercentRight * DUTY_CYCLE_MAX);
 }
 
 void CRobot::goRight()
 {
 	std::cout << "going right" << std::endl;
 	gpioWrite(AI1, 0);
-	gpioWrite(AI2,1);
+	gpioWrite(AI2, 1);
 	gpioWrite(BI1, 0);
 	gpioWrite(BI2, 1);
-	gpioHardwarePWM(PWMA, _pwmFreq, _dutyPercentRight * DUTY_CYCLE_MAX);
+	gpioHardwarePWM(PWMA, _pwmFreq, _dutyPercentLeft * DUTY_CYCLE_MAX);
 	gpioHardwarePWM(PWMB, _pwmFreq, _dutyPercentRight * DUTY_CYCLE_MAX);
+}
+
+void CRobot::veerLeft(float multiplier)
+{
+    std::cout << "Veering left\n" << std::endl;
+    gpioWrite(AI1, 1);
+	gpioWrite(AI2, 0);
+	gpioWrite(BI1, 0);
+	gpioWrite(BI2, 1);
+	gpioHardwarePWM(PWMA, _pwmFreq, _dutyPercentForward * DUTY_CYCLE_MAX);
+	gpioHardwarePWM(PWMB, _pwmFreq, (0.25 * multiplier + 0.75) * (_dutyPercentForward*DUTY_CYCLE_MAX));
+}
+
+void CRobot::veerRight(float multiplier)
+{
+    std::cout << "Veering right\n" << std::endl;
+    gpioWrite(AI1, 1);
+	gpioWrite(AI2, 0);
+	gpioWrite(BI1, 0);
+	gpioWrite(BI2, 1);
+	gpioHardwarePWM(PWMA, _pwmFreq, (0.25 * (1 - multiplier) + 0.75) * (DUTY_CYCLE_MAX*_dutyPercentForward));
+	gpioHardwarePWM(PWMB, _pwmFreq, _dutyPercentForward * DUTY_CYCLE_MAX);
 }
 
 void CRobot::goReverse()
 {
 	gpioWrite(AI1, 0);
-	gpioWrite(AI2,0);
-	gpioWrite(BI1, 0);
+	gpioWrite(AI2, 1);
+	gpioWrite(BI1, 1);
 	gpioWrite(BI2, 0);
 	gpioHardwarePWM(PWMA, _pwmFreq, _dutyPercentReverse * DUTY_CYCLE_MAX);
 	gpioHardwarePWM(PWMB, _pwmFreq, _dutyPercentReverse * DUTY_CYCLE_MAX);
@@ -593,240 +827,429 @@ void CRobot::goReverse()
 void CRobot::stop()
 {
 	//std::cout << "stopped" << std::endl;
-	gpioWrite(AI1, 1);
-	gpioWrite(AI2,1);
-	gpioWrite(BI1, 1);
-	gpioWrite(BI2, 1);
+	gpioWrite(AI1, 0);
+	gpioWrite(AI2, 0);
+	gpioWrite(BI1, 0);
+	gpioWrite(BI2, 0);
 	gpioHardwarePWM(PWMA, _pwmFreq, 0 * DUTY_CYCLE_MAX);
 	gpioHardwarePWM(PWMB, _pwmFreq, 0 * DUTY_CYCLE_MAX);
 }
 
 void CRobot::drive()
 {
+    float multiplier;
+
 	if(_ids.size() > 0)
 	{
-		for (i = 0; i < _ids.size(); i++)
+		for (_qrIndex = 0; _qrIndex < _ids.size(); _qrIndex++)
 		{
 			switch (_currentState)
 			{
 				case 1: // drive towards 30
-					// if QR 30 area is between .. and .. 
-					if(_ids[i] == 30 && _area[i] >= _c1areaMin && _area[i] <= _c1areaMax)
+					// if QR 30 area is between .. and ..
+					sevSegMessage("c1");
+					if (_ids[_qrIndex] == 30)
 					{
-						goForward();
-					}
+                        int isCentred = checkCentre(multiplier);
 
-					// break condition: if QR 30 is greater than ..
-					else if (_ids[i] == 30 && _area[i] >= _c2areaMin)
-					{
-						_currentState++;
+                        if (isCentred == 1) // 1 = centred, 0 = veering left, 2 = veering right
+                        {
+                            if (_area[_qrIndex] >= 0 && _area[_qrIndex] <= _c1areaMax)
+                            {
+                                goForward();
+                            }
+                        }
+
+                        else if (isCentred == 0)
+                        {
+                            veerLeft(multiplier);
+                        }
+
+                        else if (isCentred == 2)
+                        {
+                            veerRight(multiplier);
+                        }
+                        //if (_ids[_qrIndex] == 30 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= _c1areaMax)
+
+
+                        // break condition: if QR 30 is greater than ..
+                        if (_area[_qrIndex] >= _c1areaMax)
+                        {
+                            //std::cout << "target area reached!\n";
+                            stop();
+                            _currentState++;
+                        }
 					}
 					break;
 
 				case 2: // turn slightly right towards 26
-					// if QR 30 is greater than ..
-					if (_ids[i] == 30 && _area[i] >= _c2areaMin)
+					// if QR 30 is greater than .. rotate right
+					sevSegMessage("c2");
+					load();
+					goLeft();
+					processColour();
+					if (_pcbArea.area() >= 100)
 					{
-						stop();
+                        stop();
+                        usleep(_c2sleep);
+                        _currentState = 18;
+					}
+                    //fire();
+                    usleep(_c2sleep);
+					//stop();
+					//_currentState++;
+					/*
+					if (_ids[_qrIndex] == 30 && _area[_qrIndex] >= _c2areaMin)
+					{
+						//stop();
 						goRight();
 						usleep(_c2sleep);
 						stop();
 					}
 
-					// break condition: if it sees QR 26 and it's between .. and .. 
-					else if(_ids[i] == 26 && _area >= _c3areaMin && _area <= _c3areaMax)
+					// break condition: if it sees QR 26 and it's between .. and ..
+					if (_ids[_qrIndex] == 26 && _area[_qrIndex] >= _c3areaMin && _area[_qrIndex] <= _c3areaMax)
 					{
+                        stop();
 						_currentState++;
-
-					}
+					}*/
 					break;
 
 				case 3: // drive towards 26
-					if(_ids[i] == 26 && _area >= _c3areaMin && _area <= _c3areaMax)
-					{
-						goForward();
-					}
+                    sevSegMessage("c3");
+                    goRight();
+					usleep(_c3sleep);
+					stop();
+					_currentState++;
+//					if (_ids[_qrIndex] == 26 && _area[_qrIndex] >= _c3areaMin && _area[_qrIndex] <= _c3areaMax)
+//					{
+//                        //std::cout << "go forward" << std::endl;
+//						goForward();
+//					}
+//
+//					// break condition: if area of 26 is large enough
+//					if (_ids[_qrIndex] == 26 && _area[_qrIndex] >= _c3areaMax)
+//					{
+//                        stop();
+//                        _currentState++;
+//					}
 					break;
 
 				case 4: // rotate left towards 21
-					// code
+                    sevSegMessage("c4");
+                    if (_ids[_qrIndex] == 30 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= _c4areaMax)
+					{
+                        //std::cout << "trying to get to target area...\n";
+						goForward();
+					}
+
+					// break condition: if QR 30 is greater than ..
+					if (_ids[_qrIndex] == 30 && _area[_qrIndex] >= _c4areaMax)
+					{
+                        //std::cout << "target area reached!\n";
+                        //stop();
+                        _currentState++;
+					}
+
+					//if QR 26 is greater than .. rotate right
+//					if (_ids[_qrIndex] == 26 && _area[_qrIndex] >= _c3areaMax)
+//					{
+//                        std::cout << "rotate" << std::endl;
+//						//stop();
+//						goLeft();
+//						usleep(_c4sleep);
+//						stop();
+//					}
+//
+//					// break condition: if it sees QR 21 and it's between .. and ..
+//					if (_ids[_qrIndex] == 21 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= 8000)
+//					{
+//
+//                        stop();
+//                        _currentState++;
+//					}
 					break;
 
 				case 5: // shoot 21
-					// code
+                    sevSegMessage("c5");
+                    goRight();
+					usleep(_c5sleep);
+					stop();
+					_currentState++;
+				// go forward towards 21
+//				if (_ids[_qrIndex] == 21 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= 8500)
+//				{
+//                    goForward();
+//				}
+//				if(_ids[_qrIndex] == 21 && _area[_qrIndex] >= 8500)
+//				{
+//                    stop();
+//                    usleep(100000);
+//				}
 					break;
 
 				case 6: // rotate right towards 22
-					// code
+                    sevSegMessage("c6");
+					if (_ids[_qrIndex] == 34 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= _c6areaMax)
+					{
+                        //std::cout << "trying to get to target area...\n";
+						goForward();
+					}
+
+					// break condition: if QR 30 is greater than ..
+					if (_ids[_qrIndex] == 34 && _area[_qrIndex] >= _c6areaMax)
+					{
+                        //std::cout << "target area reached!\n";
+                        //stop();
+						_currentState++;
+					}
 					break;
 
 				case 7: // drive towards 22
-					// code
+                    sevSegMessage("c7");
+                    load();
+					goLeft();
+					usleep(_c7sleep);
+					stop();
+					//_currentState++;
+					_currentState = 19;
 					break;
 
 				case 8: // rotate left towards 22
-					// code
+                    sevSegMessage("c8");
+					goRight();
+					usleep(_c8sleep);
+					stop();
+					_currentState++;
 					break;
 
 				case 9: // rotate right towards 27
-					// code
+                    sevSegMessage("c9");
+					if (_ids[_qrIndex] == 34 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= _c9areaMax)
+					{
+                        //std::cout << "trying to get to target area...\n";
+						goForward();
+					}
+
+					// break condition: if QR 30 is greater than ..
+					if (_ids[_qrIndex] == 34 && _area[_qrIndex] >= _c9areaMax)
+					{
+                        //std::cout << "target area reached!\n";
+                        //stop();
+						_currentState++;
+					}
 					break;
 
 				case 10: // drive towards 27
-					// code
+                    sevSegMessage("c10");
+					goRight();
+					usleep(_c10sleep);
+					stop();
+					_currentState++;
 					break;
 
 				case 11: // rotate left towards 27
-					// code
+                    sevSegMessage("c11");
+					if (_ids[_qrIndex] == 29 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= _c11areaMax)
+					{
+                        //std::cout << "trying to get to target area...\n";
+						goForward();
+					}
+
+					// break condition: if QR 30 is greater than ..
+					if (_ids[_qrIndex] == 29 && _area[_qrIndex] >= _c11areaMax)
+					{
+                        //std::cout << "target area reached!\n";
+                        //stop();
+						_currentState++;
+					}
 					break;
 
 				case 12: // shoot 27
-					// code
+                    sevSegMessage("c12");
+                    load();
+					goLeft();
+					usleep(_c12sleep);
+					stop();
+					//_currentState++;
+					_currentState = 20;
 					break;
 
 				case 13: // rotate right towards 23
-					// code
+                    sevSegMessage("c13");
+					goRight();
+					usleep(_c13sleep);
+					stop();
+					_currentState++;
 					break;
 
 				case 14: // drive towards 23
-					// code
+                    sevSegMessage("c14");
+                    goForward();
+                    usleep(_c14sleep1);
+                    stop();
+                    usleep(_c14sleep2);
+                    //_currentState++;
+                    _currentState = 21;
+				/*
+					if (_ids[_qrIndex] == 23 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= 1000)
+					{
+                        //std::cout << "trying to get to target area...\n";
+						goForward();
+					}
+
+					// break condition: if QR 30 is greater than ..
+					if (_ids[_qrIndex] == 23 && _area[_qrIndex] >= 1000)
+					{
+                        //std::cout << "target area reached!\n";
+                        stop();
+						_currentState++;
+					}*/
 					break;
 
 				case 15: // rotate left towards 23
-					// code
+                    sevSegMessage("c15");
+					goReverse();
+					usleep(_c15sleep1);
+					stop();
+					usleep(_c15sleep2);
+					_currentState++;
 					break;
 
-				case 16: // shoot  23
+				case 16: // rotate towards 27
+                    sevSegMessage("c16");
 					// code
+					goLeft();
+					usleep(_c16sleep1);
+					stop();
+					usleep(_c16sleep2);
+					_currentState++;
 					break;
 
-				case 17: // rotate left towards 27
+				case 17: // drive towards 27
+                    sevSegMessage("c17");
 					// code
+					if (_ids[_qrIndex] && _area[_qrIndex] >= 0 && _area[_qrIndex] <= _c17areaMax)
+					{
+                        goForward();
+					}
+					if (_ids[_qrIndex] && _area[_qrIndex] >= _c17areaMax)
+					{
+                        stop();
+					}
 					break;
 
 				case 18: // drive towards 27
-					// code
+                    sevSegMessage("f1");
+					stop();
+					usleep(_c18sleep);
+					fire();
+					usleep(_c18sleep);
+					_currentState = 3;
 					break;
 
 				case 19: // rotate right towards 29
-					// code
+                    sevSegMessage("f2");
+					stop();
+					usleep(_c19sleep);
+					fire();
+					usleep(_c19sleep);
+					_currentState = 8;
 					break;
 
 				case 20: // drive towards 29
-					// code
+                    sevSegMessage("f3");
+					stop();
+					usleep(_c20sleep);
+					fire();
+					usleep(_c20sleep);
+					_currentState = 13;
 					break;
+
+                case 21:
+                    sevSegMessage("f4");
+                    stop();
+					usleep(_c21sleep);
+					fire();
+					usleep(_c21sleep);
+					_currentState = 15;
+                    break;
 			}
 
-			std::cout << "Current State: " << _currentState << " " << "ID: " << " " << i << "Area: " << _area[i] << std::endl;
+            //sevSegMessage(std::to_string(_currentState));
+			std::cout << "Current State: " << _currentState << " " << "ID: " << " " << _ids[_qrIndex] << " " << "Area: " << _area[_qrIndex] << std::endl;
 
 		}
 	}
-
-	/*if(_ids.size() > 0)
-	{
-		for(i = 0; i < _ids.size(); i++)
-		{
-			if(_ids[i] == 30 && _area >= 0 && _area <= 350)
-			{
-				goForward();
-
-			}
-			else if (_ids[i] == 30 && _area >= 350)
-			{
-				stop();
-				goRight();
-				usleep(100000);
-				stop();
-
-			}
-			if(_ids[i] == 26 && _area >= 0 && _area <= 2000)
-			{
-				goForward();
-
-			}
-			else if(_ids[i] == 26 && _area>= 2000)
-			{
-				stop();
-			}
-			if (_ids[i] == 21 && _area >= 2200) {
-				//stop
-				//shoot
-			}
-			else if (_ids[i] == 21 && _area <= 2200)
-			{
-				goLeft();
-				usleep(100000);
-				stop();
-			}
-
-
-		}
-	}*/
 
 	else
 	{
-		std::cout << "Looking around..." << std::endl;
+        sevSegMessage("look");
+		std::cout << "Looking around... Current state: " << _currentState << " " << std::endl;
+
+//		switch (_currentState)
+//		{
+//            case 1:
+//                usleep(1000000);
+//                goForward();
+//                break;
+//
+//            case 4: // rotate left
+//                //if (_ids[0] == 26 && _area[0] >= _c3areaMax){}
+//                //std::cout << "stop\n";
+//                //stop();
+//                //gpioDelay(500000);
+//                std::cout << "else\n";
+//                goLeft();
+//                gpioDelay(250000);
+//                stop();
+//                gpioDelay(250000);
+//                //stop();
+//                if(_ids[_qrIndex] == 21 && _area[_qrIndex] >= 0 && _area[_qrIndex] <= 8500)
+//                {
+//                    stop();
+//                }
+//                break;
+
+//		}
 	}
 }
 
-//void CRobot::fire()
-//{
-//    if(_ids.size() > 0)
-//    {
-//       for (i = 0; i < _ids.size(); i++)
-//        {
-//            if (_ids[i] == 2  && _area >= 12000)
-//            {
-////            gpioServo(SERVO1, 500); // Load = 500
-////            gpioDelay(1000);
-//            gpioServo(SERVO1, 2500); // Fire = 2500
-//            }
-//        }
-//    }
-//    else
-//    {
-////        gpioServo(SERVO1, 500);
-//    }
-//}
+void CRobot::fire()
+{
+    gpioServo(SERVO1, 500); // Fire = 500
+}
+
+void CRobot::load()
+{
+    gpioServo(SERVO1, 2500); // Fire = 500
+}
 
 
 void CRobot::draw()
 {
-	/*//_sevSegMessage = "A___";
-	sevSegMessage("A");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	//_sevSegMessage = "AB__";
-	sevSegMessage("AB");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	//_sevSegMessage = "ABC_";
-	sevSegMessage("ABC");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	//_sevSegMessage = "ABCD";
-	sevSegMessage("ABCD");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("A.BCD");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("A.B.CD");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("A.B.C.D");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("A.B.C.D.");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("3.141");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("27.31");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("192.1");
-	std::this_thread::sleep_for(std::chrono::seconds(2));
-	sevSegMessage("9576.");
-	std::this_thread::sleep_for(std::chrono::seconds(2));*/
-	cv::createTrackbar("Low Threshhold", "Settings", &_threshholdLow, 1000);
-	cv::createTrackbar("High Threshhold", "Settings", &_threshholdHigh, 1000);
+
 }
 
 void CRobot::update()
 {
-	markers();
-	//startup();
-	//drive();
+//for (int i = 0; i < 10; i++)
+//    {
+//        sevSegMessage(std::to_string(i));
+//        sevSegUpdate();
+//        usleep(1000000);
+//    }
+//    for ( int i = 0; i < 10; i++)
+//    {
+//        std::cout << "load\n";
+//        load();
+//        usleep(1000000);
+//        std::cout << "fire\n";
+//        fire();
+//        usleep(1000000);
+//    }
+    if (!_useManual)
+    {
+        markers();
+    }
 }

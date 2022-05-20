@@ -34,6 +34,7 @@ class CRobot : public CBase4618
 {
     public:
         CRobot();
+        CRobot(bool useManual);
         virtual ~CRobot();
 
         void draw();
@@ -42,8 +43,11 @@ class CRobot : public CBase4618
     protected:
 
     private:
+        // Flags
+        bool _useManual;
+
         // File
-        std::string _filename = "params.txt";
+        std::string _filename;
         std::ifstream _inFile;
         std::ofstream _outFile;
 
@@ -53,6 +57,8 @@ class CRobot : public CBase4618
         std::string _sevSegScoreMessage;
         char _sevSegChar;
         int _sevSegDigitSelector;
+        double _sevSegCurrentTime;
+        double _sevSegPreviousTime;
         std::mutex _sevSegMutex;
 
         void sevSegUpdate();
@@ -60,33 +66,45 @@ class CRobot : public CBase4618
         char sevSegChar(int digit);
 
         // Camera & ArUco
+        cv::VideoCapture _vid;
+        cv::Mat _frame;
         void markers();
-        int i = 0;
-        //float _area;
+        int checkCentre(float& multiplier);
+        int _qrIndex;
         std::vector<int> _ids;
         std::vector<float> _area;
+        std::vector<int> _xCentre;
         std::vector<std::vector<cv::Point2f> > _corners;
+
+        // Colour tracking
+        void processColour();
+        cv::Mat _colourFrame;
+        cv::Rect _pcbArea;
+
 
         // Movement Functions
         void goForward();
         void goLeft();
         void goRight();
+        void veerLeft(float multiplier);
+        void veerRight(float multiplier);
         void goReverse();
         void stop();
         void drive();
 
         // Servo
         void fire();
+        void load();
 
         // Ultrasonic sensor
-        double _usPreviousTime;
+        /*double _usPreviousTime;
         double _usCurrentTime;
         double _usPeriodTime; // Used to create a 60 ms period
         double _usEchoRisingEdge; // Time at which the rising edge on the echo pin occurs
         double _usEchoFallingEdge; // Time at which the falling edge on the echo pin occurs
         float _usDistance; // In metres
         int _usTrigState; // Used to create a 60 ms period
-        int _usEchoState;
+        int _usEchoState;*/
         void ultrasonicUpdate();
 
         // Server. To communicate with a client computer for remote control.
@@ -111,19 +129,42 @@ class CRobot : public CBase4618
         // Settings
         int _threshholdLow; // trackbar
         int _threshholdHigh; // trackbar
+        float _sevSegUpdateTime;
         int _currentState;
         int _pwmFreq;
         float _dutyPercentForward;
         float _dutyPercentLeft;
         float _dutyPercentRight;
         float _dutyPercentReverse;
-        float _c1areaMin;
         float _c1areaMax;
-        float _c2areaMin;
         int _c2sleep;
+        int _c3sleep;
+        float _c4areaMax;
+        int _c5sleep;
+        float _c6areaMax;
+        int _c7sleep;
+        int _c8sleep;
+        float _c9areaMax;
+        int _c10sleep;
+        float _c11areaMax;
+        int _c12sleep;
+        int _c13sleep;
+        int _c14sleep1;
+        int _c14sleep2;
+        int _c15sleep1;
+        int _c15sleep2;
+        int _c16sleep1;
+        int _c16sleep2;
+        float _c17areaMax;
+        int _c18sleep;
+        int _c19sleep;
+        int _c20sleep;
+        int _c21sleep;
+
 
         // Threads
         std::vector<std::thread> _threadVector;
+        //static void thread_sevSegUpdate(CRobot* ptrToSelf);
         void thread_sevSegUpdate();
         void thread_ultrasonicUpdate();
         void thread_commServerStart();
@@ -132,6 +173,7 @@ class CRobot : public CBase4618
         void thread_commClientMain();
 
         // Init
+        void init_main();
         void init_sevSeg();
         void init_gpio();
         void init_threads();

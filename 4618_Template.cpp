@@ -276,15 +276,22 @@ void print_menu()
 	std::cout << "\n***********************************";
 	std::cout << "\n* ELEX4618 Template Project";
 	std::cout << "\n***********************************";
-	std::cout << "\n(1) Robot Car";
+	std::cout << "\n(1) Robot Car - Auto";
+	std::cout << "\n(2) Robot Car - Manual";
+	std::cout << "\n(3) Tests";
 	std::cout << "\n(0) Exit";
-	std::cout << "\n(2) piCam";
 	std::cout << "\nCMD> ";
 }
 
 void robotCar()
 {
     CRobot robot;
+    robot.run();
+}
+
+void robotCarManual()
+{
+    CRobot robot(true);
     robot.run();
 }
 
@@ -406,15 +413,17 @@ int main(int argc, char* argv[])
 		{
 		case '1': robotCar();
 		break;
+		case '2': robotCarManual(); // manual mode
+		break;
         case '0':
         break;
-        case '2':
+        case '3':
             motorTest();
             break;
         default:
             std::cout << "Invalid entry, try again." << std::endl;
             cmd = "error";
             break;
-		//}
+		}
 	//} while (cmd.front() != '0'); //&& cmd != "error"
 }

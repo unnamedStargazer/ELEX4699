@@ -83,7 +83,7 @@ void CBase4618::run()
 			_waitKeyReceived = cv::waitKey(10);
 			draw();
 			update();
-			if (_waitKeyReceived == 'q' || _waitKeyReceived == 'Q' || _stop == false)
+			if (_waitKeyReceived == 'q' || _waitKeyReceived == 'Q' || _stop == true)
 			{
 				_waitKeyFlag = true;
 				_stop = true;
@@ -92,7 +92,8 @@ void CBase4618::run()
 
 		// Close threads
 //		if (!CBase4618::_waitKeyVector.empty()) // Don't try to clear an empty vector
-//		{
+//		{	/*if(_ids.size() > 0)
+
 //			// Ensure update() and draw() threads are terminated
 //			CBase4618::_waitKeyVector.front().join();
 //			CBase4618::_waitKeyVector.back().join();
